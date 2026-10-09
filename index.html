@@ -1,0 +1,843 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+<title>Emotion Stability · Neural Analytics</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+:root { box-sizing: border-box; }
+body { padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:        #04060f;
+  --surface:   #080d1c;
+  --glass:     rgba(255,255,255,0.038);
+  --border:    rgba(255,255,255,0.07);
+  --border2:   rgba(255,255,255,0.12);
+  --cyan:      #00e5ff;
+  --violet:    #8b5cf6;
+  --emerald:   #10d9a0;
+  --amber:     #f59e0b;
+  --rose:      #f43f5e;
+  --sky:       #38bdf8;
+  --text:      #e2e8f0;
+  --muted:     #64748b;
+  --font-head: 'Syne', sans-serif;
+  --font-body: 'DM Sans', sans-serif;
+  --font-mono: 'DM Mono', monospace;
+}
+
+html { scroll-behavior: smooth; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 14px;
+  line-height: 1.6;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+body::before {
+  content: '';
+  position: fixed; inset: 0;
+  background-image:
+    linear-gradient(rgba(0,229,255,0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,229,255,0.025) 1px, transparent 1px);
+  background-size: 48px 48px;
+  pointer-events: none; z-index: 0;
+  animation: gridDrift 60s linear infinite;
+}
+@keyframes gridDrift { from{background-position:0 0} to{background-position:48px 48px} }
+body::after {
+  content: '';
+  position: fixed; inset: 0;
+  background:
+    radial-gradient(ellipse 60% 40% at 15% 20%, rgba(139,92,246,0.08) 0%, transparent 70%),
+    radial-gradient(ellipse 50% 35% at 85% 75%, rgba(0,229,255,0.07) 0%, transparent 70%),
+    radial-gradient(ellipse 40% 30% at 50% 10%, rgba(16,217,160,0.05) 0%, transparent 70%);
+  pointer-events: none; z-index: 0;
+}
+
+.wrapper {
+  position: relative; z-index: 1;
+  max-width: 960px; margin: 0 auto;
+  padding: 0 28px 80px;
+}
+
+/* ── Header ── */
+header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 32px 0 28px;
+  border-bottom: 1px solid var(--border);
+}
+.logo-area { display: flex; align-items: center; gap: 14px; }
+.logo-icon {
+  width: 44px; height: 44px;
+  background: linear-gradient(135deg, var(--violet), var(--cyan));
+  border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px;
+}
+.logo-title { display: block; font-family: var(--font-head); font-size: 18px; font-weight: 700; letter-spacing: -.01em; }
+.logo-sub   { display: block; font-family: var(--font-mono); font-size: 10px; color: var(--muted); letter-spacing: .1em; }
+.header-status { display: flex; align-items: center; gap: 8px; }
+.status-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--emerald); box-shadow: 0 0 10px var(--emerald);
+  animation: pulse 2s ease-in-out infinite;
+}
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+.status-label { font-family: var(--font-mono); font-size: 11px; color: var(--muted); }
+
+/* ── Section label ── */
+.section-label {
+  font-family: var(--font-mono); font-size: 10px;
+  letter-spacing: .12em; text-transform: uppercase;
+  color: var(--muted); margin: 36px 0 12px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+
+/* ── Analyse card ── */
+.analyse-card {
+  background: var(--glass);
+  border: 1px solid var(--border);
+  border-radius: 20px; padding: 28px;
+}
+.typing-hint {
+  font-family: var(--font-mono); font-size: 11px;
+  color: var(--muted); margin-bottom: 14px; letter-spacing: .03em;
+  line-height: 1.7;
+}
+.typing-hint strong { color: var(--cyan); font-weight: 500; }
+
+.input-row { display: flex; gap: 12px; align-items: flex-start; }
+
+textarea#userText {
+  width: 100%; min-height: 100px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--border2);
+  border-radius: 12px; padding: 14px 16px;
+  font-family: var(--font-body); font-size: 14px; color: var(--text);
+  resize: vertical; outline: none; line-height: 1.6;
+  transition: border-color .25s, box-shadow .25s;
+  caret-color: var(--cyan);
+}
+textarea#userText::placeholder { color: var(--muted); }
+textarea#userText:focus {
+  border-color: rgba(0,229,255,0.35);
+  box-shadow: 0 0 0 3px rgba(0,229,255,0.06);
+}
+
+.analyse-btn {
+  flex-shrink: 0; padding: 14px 26px;
+  background: linear-gradient(135deg, var(--violet), var(--cyan));
+  border: none; border-radius: 12px; color: #fff;
+  font-family: var(--font-head); font-size: 14px; font-weight: 700;
+  letter-spacing: .02em; cursor: pointer; white-space: nowrap;
+  transition: opacity .2s, transform .15s, box-shadow .2s;
+  box-shadow: 0 4px 24px rgba(139,92,246,0.25);
+}
+.analyse-btn:hover  { opacity: .9; transform: translateY(-1px); box-shadow: 0 6px 28px rgba(139,92,246,0.35); }
+.analyse-btn:active { transform: translateY(0); }
+.analyse-btn:disabled { opacity: .45; cursor: not-allowed; transform: none; }
+
+/* ── Live metrics chips ── */
+.metrics-bar {
+  display: flex; flex-wrap: wrap; gap: 8px;
+  margin-top: 16px; min-height: 32px;
+}
+.metric-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 10px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-family: var(--font-mono); font-size: 10px; color: var(--muted);
+  transition: color .3s, border-color .3s, background .3s;
+}
+.metric-chip.active {
+  color: var(--cyan); border-color: rgba(0,229,255,0.2);
+  background: rgba(0,229,255,0.05);
+}
+.metric-chip .mc-val { font-weight: 500; color: var(--text); }
+.metric-chip.active .mc-val { color: var(--cyan); }
+
+/* ── Warning ── */
+.char-warning {
+  font-family: var(--font-mono); font-size: 10px;
+  color: var(--amber); letter-spacing: .06em;
+  margin-top: 10px; display: none;
+}
+
+/* ── Result ── */
+.result-area {
+  margin-top: 18px; min-height: 48px;
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+}
+.emotion-pill {
+  display: none; align-items: center; gap: 10px;
+  padding: 10px 20px; border-radius: 100px; border: 1px solid transparent;
+  font-family: var(--font-head); font-size: 15px; font-weight: 700;
+  transition: all .4s cubic-bezier(.16,1,.3,1);
+}
+.result-meta {
+  font-family: var(--font-mono); font-size: 11px;
+  color: var(--muted); line-height: 1.6;
+}
+.spinner {
+  width: 20px; height: 20px;
+  border: 2px solid rgba(255,255,255,0.08);
+  border-top-color: var(--cyan);
+  border-radius: 50%; animation: spin .7s linear infinite;
+  display: none; flex-shrink: 0;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.spinner.active { display: block; }
+
+/* ── History card ── */
+.history-card {
+  background: var(--glass); border: 1px solid var(--border);
+  border-radius: 20px; padding: 28px;
+}
+.card-header {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  margin-bottom: 22px; flex-wrap: wrap; gap: 10px;
+}
+.card-title { font-family: var(--font-head); font-size: 16px; font-weight: 700; }
+.card-sub   { font-family: var(--font-mono); font-size: 10px; color: var(--muted); letter-spacing: .06em; margin-top: 3px; }
+.badge {
+  font-family: var(--font-mono); font-size: 10px; letter-spacing: .08em;
+  padding: 5px 12px; border-radius: 100px; border: 1px solid;
+}
+.badge-violet { color: var(--violet); border-color: rgba(139,92,246,.25); background: rgba(139,92,246,.06); }
+.chart-wrap { height: 240px; position: relative; }
+
+.empty-state {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  height: 200px; gap: 10px;
+}
+.empty-icon { font-size: 32px; opacity: .25; }
+.empty-text { font-family: var(--font-mono); font-size: 11px; color: var(--muted); letter-spacing: .08em; text-align: center; }
+
+/* ── Log ── */
+.log-list { display: flex; flex-direction: column; gap: 8px; }
+.log-entry {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 14px;
+  background: rgba(255,255,255,0.025);
+  border: 1px solid var(--border);
+  border-radius: 10px; animation: fadeIn .35s ease;
+}
+@keyframes fadeIn { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:none} }
+.log-dot  { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.log-time { font-family: var(--font-mono); font-size: 10px; color: var(--muted); min-width: 110px; }
+.log-emotion { font-family: var(--font-head); font-size: 13px; font-weight: 600; min-width: 100px; }
+.log-ks { font-family: var(--font-mono); font-size: 10px; color: var(--muted); }
+
+.clear-btn {
+  background: none; border: 1px solid rgba(255,255,255,0.1);
+  color: var(--muted); font-family: var(--font-mono); font-size: 10px;
+  letter-spacing: .08em; padding: 5px 12px; border-radius: 100px;
+  cursor: pointer; transition: border-color .2s, color .2s;
+}
+.clear-btn:hover { border-color: var(--rose); color: var(--rose); }
+
+@media (max-width: 600px) {
+  .input-row { flex-direction: column; }
+  .analyse-btn { width: 100%; }
+  header { flex-direction: column; align-items: flex-start; gap: 14px; }
+}
+@keyframes shake {
+  0%,100%{transform:translateX(0)}
+  20%{transform:translateX(-6px)} 40%{transform:translateX(6px)}
+  60%{transform:translateX(-4px)} 80%{transform:translateX(4px)}
+}
+</style>
+</head>
+<body>
+<div class="wrapper">
+
+  <header>
+    <div class="logo-area">
+      <div class="logo-icon">🧠</div>
+      <div>
+        <span class="logo-title">Emotion Stability</span>
+        <span class="logo-sub">Keystroke Dynamics · Emotion Tracking</span>
+      </div>
+    </div>
+    <div class="header-status">
+      <div class="status-dot"></div>
+      <span class="status-label" id="statusTxt">Listening…</span>
+    </div>
+  </header>
+
+  <!-- Analyse -->
+  <div class="section-label"><span>Keystroke Analysis</span></div>
+  <div class="analyse-card">
+
+    <div class="typing-hint">
+      Type naturally in the box below — only your <strong>typing rhythm &amp; dynamics</strong> are captured
+      (dwell time, flight time, speed, pauses, corrections). Your actual words are <strong>never read or sent</strong>.
+      Aim for at least 20 keystrokes for a reliable reading.
+    </div>
+
+    <div class="input-row">
+      <textarea id="userText" placeholder="Type freely — anything at all. Only how you type matters, not what you type."></textarea>
+      <button class="analyse-btn" id="analyseBtn" onclick="analyseEmotion()">Analyse</button>
+    </div>
+
+    <div class="char-warning" id="charWarning">⚠ Keep typing — need at least 20 keystrokes for accurate analysis</div>
+
+    <!-- Live keystroke chips -->
+    <div class="metrics-bar">
+      <div class="metric-chip" id="chip-speed">⌨&nbsp;Speed&nbsp;<span class="mc-val" id="mv-speed">—</span>&nbsp;cps</div>
+      <div class="metric-chip" id="chip-dwell">⏱&nbsp;Dwell&nbsp;<span class="mc-val" id="mv-dwell">—</span>&nbsp;ms</div>
+      <div class="metric-chip" id="chip-flight">✈&nbsp;Flight&nbsp;<span class="mc-val" id="mv-flight">—</span>&nbsp;ms</div>
+      <div class="metric-chip" id="chip-pause">⏸&nbsp;Pauses&nbsp;<span class="mc-val" id="mv-pause">—</span></div>
+      <div class="metric-chip" id="chip-bs">⌫&nbsp;Corrections&nbsp;<span class="mc-val" id="mv-bs">—</span></div>
+      <div class="metric-chip" id="chip-burst">⚡&nbsp;Burst&nbsp;<span class="mc-val" id="mv-burst">—</span>&nbsp;cps</div>
+    </div>
+
+    <div class="result-area">
+      <div class="spinner" id="spinner"></div>
+      <div class="emotion-pill" id="emotionPill"></div>
+      <div class="result-meta" id="resultMeta"></div>
+    </div>
+  </div>
+
+  <!-- 7-day chart -->
+  <div class="section-label">
+    <span>7-Day Emotion History</span>
+    <button class="clear-btn" onclick="clearHistory()">Clear All</button>
+  </div>
+  <div class="history-card">
+    <div class="card-header">
+      <div>
+        <div class="card-title">Emotion Timeline</div>
+        <div class="card-sub">Past 7 days · Keystroke-based readings</div>
+      </div>
+      <span class="badge badge-violet" id="countBadge">0 entries</span>
+    </div>
+    <div class="chart-wrap">
+      <div class="empty-state" id="emptyState">
+        <div class="empty-icon">📈</div>
+        <div class="empty-text">No data yet<br>Type and analyse to start tracking</div>
+      </div>
+      <canvas id="historyChart" style="display:none"></canvas>
+    </div>
+  </div>
+
+  <!-- Recent log -->
+  <div class="section-label"><span>Recent Readings</span></div>
+  <div class="log-list" id="logList"></div>
+
+</div>
+<script>
+/* ══════════════════════════════════════════════════════
+   RULE-BASED CLASSIFIER — JavaScript port of emotion_model._rule_predict
+   Runs fully in the browser; no server needed.
+══════════════════════════════════════════════════════ */
+const EMOTION_LABELS = ["Calm", "Happy", "Sad", "Angry", "Anxious"];
+
+function pts(val, t1, t2, t3, weight = 1.0, inv = false) {
+  if (inv) {
+    if (val <= t3) return weight;
+    if (val <= t2) return weight * 0.5;
+    if (val <= t1) return weight * 0.15;
+    return -weight * 0.3;
+  }
+  if (val >= t3) return weight;
+  if (val >= t2) return weight * 0.5;
+  if (val >= t1) return weight * 0.15;
+  return -weight * 0.3;
+}
+
+function rulePredict(m) {
+  const g = (k) => Number(m[k] || 0);
+  const speed = g("TypingSpeed_cps"), dwell = g("DwellTime_mean"), d_std = g("DwellTime_std");
+  const flight = g("FlightTime_mean"), f_std = g("FlightTime_std"), errate = g("ErrorRate");
+  const pauses = Math.trunc(g("PauseFrequency")), burst = g("BurstSpeed");
+  const bksp = Math.trunc(g("BackspaceFrequency")), caps = Math.trunc(g("CapitalizationFreq"));
+  const idle = g("IdleTime_mean");
+
+  const sc = { Calm: 0, Happy: 0, Sad: 0, Angry: 0, Anxious: 0 };
+
+  // CALM
+  sc.Calm += pts(d_std, 28, 20, 12, 2.5, true);
+  sc.Calm += pts(f_std, 55, 38, 22, 2.0, true);
+  sc.Calm += pts(errate, 0.06, 0.04, 0.02, 2.5, true);
+  sc.Calm += pts(bksp, 3, 1, 0, 1.5, true);
+  sc.Calm += pts(speed, 2.8, 3.5, 4.0, 1.5);
+  sc.Calm += pts(pauses, 3, 1, 0, 1.5, true);
+  sc.Calm += pts(dwell, 100, 115, 140, 1.0);
+  sc.Calm += pts(caps, 4, 2, 0, 0.8, true);
+  if (speed >= 4.1) sc.Calm -= 2.5;
+  if (speed < 2.5) sc.Calm -= 2.0;
+  if (d_std > 35) sc.Calm -= 2.0;
+  if (f_std > 70) sc.Calm -= 1.5;
+  if (errate > 0.10) sc.Calm -= 1.5;
+  if (flight > 280) sc.Calm -= 1.5;
+  if (dwell > 155) sc.Calm -= 1.0;
+  if (dwell < 100 && errate <= 0.03 && speed >= 3.8) sc.Calm -= 1.5;
+
+  // HAPPY
+  sc.Happy += pts(speed, 3.5, 4.0, 5.5, 3.5);
+  sc.Happy += pts(d_std, 24, 16, 9, 2.5, true);
+  sc.Happy += pts(f_std, 45, 30, 16, 2.0, true);
+  sc.Happy += pts(errate, 0.05, 0.03, 0.01, 2.5, true);
+  sc.Happy += pts(bksp, 2, 1, 0, 1.5, true);
+  sc.Happy += pts(burst, 8, 10, 14, 2.0);
+  sc.Happy += pts(pauses, 2, 1, 0, 1.5, true);
+  sc.Happy += pts(dwell, 130, 110, 85, 1.5, true);
+  if (speed >= 4.0 && d_std < 22) sc.Happy += 2.0;
+  if (speed >= 3.8 && errate <= 0.03 && pauses === 0) sc.Happy += 1.5;
+  if (speed < 2.5) sc.Happy -= 3.0;
+  if (d_std > 30) sc.Happy -= 1.5;
+  if (errate > 0.10) sc.Happy -= 1.5;
+  if (dwell <= 90 && d_std >= 28) sc.Happy -= 1.5;
+
+  // SAD
+  sc.Sad += pts(speed, 3.2, 2.5, 1.5, 3.5, true);
+  sc.Sad += pts(dwell, 135, 165, 220, 3.0);
+  sc.Sad += pts(flight, 220, 290, 420, 2.5);
+  sc.Sad += pts(idle, 350, 900, 2000, 2.0);
+  sc.Sad += pts(burst, 8, 5.5, 3, 2.0, true);
+  sc.Sad += pts(pauses, 2, 3, 5, 1.5);
+  sc.Sad += pts(caps, 3, 1, 0, 0.8, true);
+  if (speed <= 2.8 && dwell >= 145) sc.Sad += 2.0;
+  if (speed > 4.5) sc.Sad -= 3.0;
+  if (dwell < 115) sc.Sad -= 2.0;
+  if (burst > 10) sc.Sad -= 1.5;
+
+  // ANGRY
+  sc.Angry += pts(speed, 4.0, 4.8, 6.0, 3.5);
+  sc.Angry += pts(dwell, 110, 90, 70, 2.5, true);
+  sc.Angry += pts(burst, 5.0, 6.5, 8.5, 2.0);
+  sc.Angry += pts(errate, 0.05, 0.09, 0.16, 1.5);
+  sc.Angry += pts(caps, 2, 4, 6, 1.2);
+  sc.Angry += pts(d_std, 22, 32, 45, 1.5);
+  sc.Angry += pts(pauses, 2, 1, 0, 2.0, true);
+  sc.Angry += pts(flight, 180, 140, 100, 1.0, true);
+  if (speed >= 4.2 && pauses === 0) sc.Angry += 1.5;
+  if (speed >= 4.0 && dwell <= 100) sc.Angry += 1.0;
+  if (speed < 3.2) sc.Angry -= 3.0;
+  if (dwell > 160) sc.Angry -= 2.0;
+  if (pauses > 4) sc.Angry -= 1.5;
+
+  // ANXIOUS
+  sc.Anxious += pts(d_std, 30, 42, 60, 3.0);
+  sc.Anxious += pts(f_std, 55, 85, 130, 3.0);
+  sc.Anxious += pts(errate, 0.08, 0.13, 0.22, 2.5);
+  sc.Anxious += pts(bksp, 3, 5, 8, 2.5);
+  sc.Anxious += pts(pauses, 2, 4, 6, 2.0);
+  sc.Anxious += pts(idle, 200, 500, 1000, 1.0);
+  if (speed > 5.5) sc.Anxious -= 2.0;
+  if (d_std < 20) sc.Anxious -= 2.0;
+  if (f_std < 35) sc.Anxious -= 1.5;
+
+  // DECISION (first max wins, same as Python's max())
+  let best = EMOTION_LABELS[0];
+  for (const e of EMOTION_LABELS) if (sc[e] > sc[best]) best = e;
+
+  const raw = EMOTION_LABELS.map((e) => sc[e]);
+  const mx = Math.max(...raw);
+  const ex = raw.map((v) => Math.exp(v - mx));
+  const sum = ex.reduce((a, b) => a + b, 0);
+  let conf = Math.round((ex[EMOTION_LABELS.indexOf(best)] / sum) * 1000) / 10;
+  conf = Math.max(52.0, Math.min(97.0, conf));
+
+  const clues = [];
+  if (speed >= 5.0) clues.push(`fast typing (${speed.toFixed(1)} cps)`);
+  else if (speed <= 2.5) clues.push(`slow typing (${speed.toFixed(1)} cps)`);
+  else clues.push(`moderate speed (${speed.toFixed(1)} cps)`);
+  if (errate >= 0.12) clues.push(`high error rate (${Math.round(errate * 100)}%)`);
+  else if (errate <= 0.03) clues.push("very few corrections");
+  if (d_std >= 35) clues.push("erratic key-hold rhythm");
+  else if (d_std <= 15) clues.push("very consistent rhythm");
+  if (f_std >= 80) clues.push("irregular key timing");
+  else if (f_std <= 25) clues.push("smooth key flow");
+  if (pauses >= 4) clues.push(`frequent pauses (${pauses})`);
+  else if (pauses === 0) clues.push("no pauses");
+  if (burst >= 12) clues.push(`high burst speed (${burst.toFixed(1)} cps)`);
+  else if (burst <= 5) clues.push(`low burst speed (${burst.toFixed(1)} cps)`);
+  if (dwell >= 160) clues.push(`long key-hold (${Math.round(dwell)} ms)`);
+  else if (dwell <= 90) clues.push(`short key-hold (${Math.round(dwell)} ms)`);
+  if (caps >= 4) clues.push("emphatic capitalisation");
+  if (bksp >= 5) clues.push(`many backspaces (${bksp})`);
+
+  return { emotion: best, confidence: conf, reasoning: "Detected: " + clues.slice(0, 4).join(", ") + "." };
+}
+
+/* ══════════════════════════════════════════════════════
+   EMOTION CONFIG
+══════════════════════════════════════════════════════ */
+const EMOTIONS = {
+  Calm:    { color: '#00e5ff', emoji: '😌', bg: 'rgba(0,229,255,0.1)',   border: 'rgba(0,229,255,0.3)'  },
+  Happy:   { color: '#10d9a0', emoji: '😄', bg: 'rgba(16,217,160,0.1)',  border: 'rgba(16,217,160,0.3)' },
+  Sad:     { color: '#818cf8', emoji: '😢', bg: 'rgba(129,140,248,0.1)',  border: 'rgba(129,140,248,0.3)' },
+  Angry:   { color: '#f43f5e', emoji: '😠', bg: 'rgba(244,63,94,0.1)',    border: 'rgba(244,63,94,0.3)'  },
+  Anxious: { color: '#f59e0b', emoji: '😰', bg: 'rgba(245,158,11,0.1)',   border: 'rgba(245,158,11,0.3)' },
+};
+const EMO_NAMES = Object.keys(EMOTIONS);
+
+/* ══════════════════════════════════════════════════════
+   KEYSTROKE TRACKER
+   Captures the exact same features as the training dataset:
+   DwellTime_mean/std, FlightTime_mean/std, TypingSpeed_cps,
+   PauseFrequency, PauseDuration_mean, BackspaceFrequency,
+   ErrorRate, BurstSpeed, SessionDuration,
+   CapitalizationFreq, PunctuationFreq, IdleTime_mean
+══════════════════════════════════════════════════════ */
+const Tracker = (() => {
+  const PAUSE_MS = 1000;   // gap ≥ 1s = pause
+  const IDLE_MS  = 2000;   // gap ≥ 2s = idle
+  const BURST_MS = 2000;   // window for burst speed
+
+  const PUNCT = new Set(['.', ',', '!', '?', ';', ':', '"', "'", '-', '(', ')', '…', '/', '\\']);
+
+  let state = freshState();
+
+  function freshState() {
+    return {
+      keyDownAt: {},        // code → performance.now()
+      dwells: [],           // ms each key held
+      flights: [],          // ms between keyUp and next keyDown
+      presses: [],          // timestamps of every keydown
+      lastUpAt: null,
+      pauseGaps: [],        // flights ≥ PAUSE_MS
+      idleGaps: [],         // flights ≥ IDLE_MS
+      backspaces: 0,
+      totalKeys: 0,
+      capsKeys: 0,
+      punctKeys: 0,
+      sessionStart: null,
+    };
+  }
+
+  function reset() { state = freshState(); }
+
+  function onDown(e) {
+    const now = performance.now();
+    if (!state.sessionStart) state.sessionStart = now;
+
+    // Flight time from last keyUp
+    if (state.lastUpAt !== null) {
+      const gap = now - state.lastUpAt;
+      state.flights.push(gap);
+      if (gap >= PAUSE_MS) state.pauseGaps.push(gap);
+      if (gap >= IDLE_MS)  state.idleGaps.push(gap);
+    }
+
+    state.keyDownAt[e.code] = now;
+    state.presses.push(now);
+    state.totalKeys++;
+
+    if (e.key === 'Backspace' || e.key === 'Delete') state.backspaces++;
+    if (e.key.length === 1) {
+      if (e.shiftKey || e.getModifierState?.('CapsLock')) state.capsKeys++;
+      if (PUNCT.has(e.key)) state.punctKeys++;
+    }
+
+    refreshChips();
+  }
+
+  function onUp(e) {
+    const now = performance.now();
+    if (state.keyDownAt[e.code] !== undefined) {
+      state.dwells.push(now - state.keyDownAt[e.code]);
+      delete state.keyDownAt[e.code];
+    }
+    state.lastUpAt = now;
+  }
+
+  /* Stats helpers */
+  function mean(a) { return a.length ? a.reduce((s, v) => s + v, 0) / a.length : 0; }
+  function std(a) {
+    if (a.length < 2) return 0;
+    const m = mean(a);
+    return Math.sqrt(a.reduce((s, v) => s + (v - m) ** 2, 0) / a.length);
+  }
+
+  function getMetrics() {
+    const durSec = state.sessionStart
+      ? (performance.now() - state.sessionStart) / 1000 : 0;
+
+    // Burst: max keystrokes in any BURST_MS window
+    let burst = 0;
+    for (let i = 0; i < state.presses.length; i++) {
+      const end = state.presses[i] + BURST_MS;
+      let n = 0;
+      for (let j = i; j < state.presses.length && state.presses[j] <= end; j++) n++;
+      if (n > burst) burst = n;
+    }
+
+    return {
+      DwellTime_mean:     +mean(state.dwells).toFixed(2),
+      DwellTime_std:      +std(state.dwells).toFixed(2),
+      FlightTime_mean:    +mean(state.flights).toFixed(2),
+      FlightTime_std:     +std(state.flights).toFixed(2),
+      TypingSpeed_cps:    +(durSec > 0 ? state.totalKeys / durSec : 0).toFixed(4),
+      PauseFrequency:     state.pauseGaps.length,
+      PauseDuration_mean: +mean(state.pauseGaps).toFixed(2),
+      BackspaceFrequency: state.backspaces,
+      ErrorRate:          +(state.totalKeys > 0 ? state.backspaces / state.totalKeys : 0).toFixed(6),
+      BurstSpeed:         +(burst / (BURST_MS / 1000)).toFixed(4),
+      SessionDuration:    +durSec.toFixed(2),
+      CapitalizationFreq: state.capsKeys,
+      PunctuationFreq:    state.punctKeys,
+      IdleTime_mean:      +mean(state.idleGaps).toFixed(2),
+    };
+  }
+
+  /* Live chip refresh */
+  function refreshChips() {
+    const m = getMetrics();
+    const on = state.totalKeys > 3;
+    chip('speed',  m.TypingSpeed_cps.toFixed(1), on);
+    chip('dwell',  m.DwellTime_mean.toFixed(0),  on);
+    chip('flight', m.FlightTime_mean.toFixed(0), on);
+    chip('pause',  m.PauseFrequency,             on);
+    chip('bs',     m.BackspaceFrequency,         on);
+    chip('burst',  m.BurstSpeed.toFixed(1),      on);
+  }
+
+  function chip(id, val, active) {
+    const el = document.getElementById('chip-' + id);
+    const mv = document.getElementById('mv-' + id);
+    if (mv) mv.textContent = val;
+    if (el) el.classList.toggle('active', active);
+  }
+
+  function resetChipUI() {
+    ['speed','dwell','flight','pause','bs','burst'].forEach(id => {
+      const el = document.getElementById('chip-' + id);
+      const mv = document.getElementById('mv-' + id);
+      if (mv) mv.textContent = '—';
+      if (el) el.classList.remove('active');
+    });
+  }
+
+  return { reset, onDown, onUp, getMetrics, totalKeys: () => state.totalKeys };
+})();
+
+/* Bind textarea */
+const ta = document.getElementById('userText');
+ta.addEventListener('keydown', e => Tracker.onDown(e));
+ta.addEventListener('keyup',   e => Tracker.onUp(e));
+ta.addEventListener('input', () => {
+  const warn = document.getElementById('charWarning');
+  warn.style.display = (ta.value.length > 0 && Tracker.totalKeys() < 20) ? 'block' : 'none';
+});
+
+/* ══════════════════════════════════════════════════════
+   STORAGE  (7-day rolling window)
+══════════════════════════════════════════════════════ */
+const STORE_KEY = 'emo_ks_v3';
+
+function loadHistory() {
+  try {
+    const cutoff = Date.now() - 7 * 86400000;
+    return (JSON.parse(localStorage.getItem(STORE_KEY)) || []).filter(e => e.ts > cutoff);
+  } catch { return []; }
+}
+function saveHistory(h) {
+  try { localStorage.setItem(STORE_KEY, JSON.stringify(h)); } catch {}
+}
+function addEntry(emotion, m) {
+  const h = loadHistory();
+  h.unshift({ ts: Date.now(), emotion, speed: m.TypingSpeed_cps, keys: Tracker.totalKeys(), erRate: m.ErrorRate });
+  saveHistory(h);
+  return h;
+}
+
+/* ══════════════════════════════════════════════════════
+   ANALYSE
+══════════════════════════════════════════════════════ */
+let histChart = null;
+
+async function analyseEmotion() {
+  if (Tracker.totalKeys() < 10) { shake(ta); document.getElementById('charWarning').style.display = 'block'; return; }
+
+  const metrics = Tracker.getMetrics();
+  const btn     = document.getElementById('analyseBtn');
+  const spinner = document.getElementById('spinner');
+  const pill    = document.getElementById('emotionPill');
+  const meta    = document.getElementById('resultMeta');
+
+  btn.disabled = true;
+  spinner.classList.add('active');
+  pill.style.display = 'none';
+  meta.textContent = 'Analysing keystroke dynamics…';
+  document.getElementById('statusTxt').textContent = 'Processing…';
+
+  /* Classify locally in the browser — no server needed */
+  try {
+    const parsed = rulePredict(metrics);
+
+    const emotion = EMO_NAMES.includes(parsed.emotion) ? parsed.emotion : 'Calm';
+    const conf    = parsed.confidence || 75;
+    const cfg     = EMOTIONS[emotion];
+
+    pill.style.display     = 'inline-flex';
+    pill.style.background  = cfg.bg;
+    pill.style.borderColor = cfg.border;
+    pill.style.color       = cfg.color;
+    pill.innerHTML = `<span>${cfg.emoji}</span><span>${emotion}</span>`;
+
+    meta.innerHTML =
+      `<span style="color:${cfg.color};font-weight:600">${conf}% confidence</span><br>` +
+      (parsed.reasoning || '');
+
+    document.getElementById('statusTxt').textContent = 'Reading complete';
+
+    const history = addEntry(emotion, metrics);
+    updateChart(history);
+    updateLog(history);
+    updateBadge(history.length);
+
+    /* Reset for next typing session */
+    Tracker.reset();
+    ta.value = '';
+    document.getElementById('charWarning').style.display = 'none';
+
+  } catch (err) {
+    meta.textContent = 'Analysis failed — please try again.';
+    document.getElementById('statusTxt').textContent = 'Error';
+    console.error(err);
+  } finally {
+    spinner.classList.remove('active');
+    btn.disabled = false;
+  }
+}
+
+/* ══════════════════════════════════════════════════════
+   CHART
+══════════════════════════════════════════════════════ */
+function buildChartData(history) {
+  const now  = new Date();
+  const days = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(now); d.setDate(d.getDate() - (6 - i)); return d;
+  });
+
+  const labels = days.map(d =>
+    d.toDateString() === now.toDateString()
+      ? 'Today'
+      : d.toLocaleDateString('en', { weekday: 'short', month: 'short', day: 'numeric' })
+  );
+
+  const datasets = EMO_NAMES.map(name => {
+    const cfg = EMOTIONS[name];
+    return {
+      label: name,
+      data: days.map(d => history.filter(e => new Date(e.ts).toDateString() === d.toDateString() && e.emotion === name).length),
+      backgroundColor: cfg.color + 'cc',
+      borderColor: cfg.color,
+      borderWidth: 1,
+      borderRadius: 4,
+      maxBarThickness: 48,
+    };
+  });
+
+  return { labels, datasets };
+}
+
+function updateChart(history) {
+  const empty  = document.getElementById('emptyState');
+  const canvas = document.getElementById('historyChart');
+
+  if (!history.length) {
+    empty.style.display = 'flex'; canvas.style.display = 'none';
+    if (histChart) { histChart.destroy(); histChart = null; }
+    return;
+  }
+  empty.style.display = 'none'; canvas.style.display = 'block';
+
+  const { labels, datasets } = buildChartData(history);
+
+  if (histChart) { histChart.data.labels = labels; histChart.data.datasets = datasets; histChart.update(); return; }
+
+  Chart.defaults.color       = '#64748b';
+  Chart.defaults.font.family = "'DM Mono', monospace";
+
+  histChart = new Chart(canvas.getContext('2d'), {
+    type: 'bar',
+    data: { labels, datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      animation: { duration: 800, easing: 'easeOutQuart' },
+      plugins: {
+        legend: { labels: { color: '#64748b', font: { size: 11 }, boxWidth: 10, padding: 16, usePointStyle: true } },
+        tooltip: {
+          backgroundColor: 'rgba(8,13,28,0.95)',
+          borderColor: 'rgba(255,255,255,0.08)', borderWidth: 1,
+          titleColor: '#e2e8f0', bodyColor: '#94a3b8', padding: 12,
+          callbacks: {
+            label: i => i.raw > 0 ? `  ${i.dataset.label}: ${i.raw}×` : null,
+            filter: i => i.raw > 0,
+          }
+        }
+      },
+      scales: {
+        x: { stacked: true, grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#475569', font: { size: 10 }, maxRotation: 30 } },
+        y: {
+          grid: { color: 'rgba(255,255,255,0.04)' },
+          ticks: { color: '#475569', font: { size: 10 }, stepSize: 1, precision: 0 },
+          stacked: true,
+          title: { display: true, text: 'Count', color: '#475569', font: { size: 10 } },
+          min: 0,
+        }
+      }
+    }
+  });
+}
+
+/* ══════════════════════════════════════════════════════
+   LOG LIST
+══════════════════════════════════════════════════════ */
+function updateLog(history) {
+  document.getElementById('logList').innerHTML = history.slice(0, 8).map(e => {
+    const cfg  = EMOTIONS[e.emotion] || EMOTIONS.Calm;
+    const date = new Date(e.ts).toLocaleString('en', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    return `<div class="log-entry">
+      <div class="log-dot" style="background:${cfg.color};box-shadow:0 0 6px ${cfg.color}88"></div>
+      <span class="log-time">${date}</span>
+      <span class="log-emotion" style="color:${cfg.color}">${cfg.emoji} ${e.emotion}</span>
+      <span class="log-ks">${(e.speed||0).toFixed(1)} cps · ${e.keys||0} keys</span>
+    </div>`;
+  }).join('');
+}
+
+function updateBadge(n) {
+  document.getElementById('countBadge').textContent = `${n} entr${n === 1 ? 'y' : 'ies'}`;
+}
+
+/* ══════════════════════════════════════════════════════
+   CLEAR / UTILS
+══════════════════════════════════════════════════════ */
+function clearHistory() {
+  if (!confirm('Clear all emotion history?')) return;
+  localStorage.removeItem(STORE_KEY);
+  updateChart([]); updateLog([]); updateBadge(0);
+  document.getElementById('emotionPill').style.display = 'none';
+  document.getElementById('resultMeta').textContent = '';
+}
+
+function shake(el) {
+  el.style.animation = 'none'; el.getBoundingClientRect();
+  el.style.animation = 'shake .35s ease';
+  setTimeout(() => el.style.animation = '', 400);
+}
+
+ta.addEventListener('keydown', e => { if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') analyseEmotion(); });
+
+/* Init */
+const stored = loadHistory();
+updateChart(stored); updateLog(stored); updateBadge(stored.length);
+</script>
+</body>
+</html>
